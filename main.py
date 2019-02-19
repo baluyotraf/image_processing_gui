@@ -1,78 +1,114 @@
-from tkinter import *
-from tkinter import ttk
+import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 from PIL import Image, ImageTk
 
 
-root = Tk()
-root.title("Image Processor")
-root.option_add('*tearOff', FALSE)
+class ImageFrame(tk.Frame):
 
-content = ttk.Frame(root, width=600, height=300)
-image_info = ttk.Frame(content, width=300, height=300,
-                       borderwidth=1, relief='solid')
-image_display = ttk.Frame(content, width=300, height=300,
-                          borderwidth=1, relief='solid')
-lbl_image = ttk.Label(image_display)
-lbl_filename_l = ttk.Label(image_info, text='Filename:')
-lbl_filename_v = ttk.Label(image_info, text='N/A')
-lbl_format_l = ttk.Label(image_info, text='Format:')
-lbl_format_v = ttk.Label(image_info, text='N/A')
-lbl_mode_l = ttk.Label(image_info, text='Mode:')
-lbl_mode_v = ttk.Label(image_info, text='N/A')
-lbl_size_l = ttk.Label(image_info, text='Size:')
-lbl_size_v = ttk.Label(image_info, text='N/A')
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self._image = None
 
+        self.lbl_image = tk.Label(self)
+        self.lbl_image.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
-def process_image(*args, **kwargs):
-    fn = filedialog.askopenfilename()
-    try:
-        img = Image.open(fn)
-    except OSError:
-        messagebox.showerror('Invalid Image File',
-                             'Please Specify a valid image file')
-        return
+    @property
+    def image(self):
+        return self._image
 
-    lbl_filename_v['text'] = img.filename
-    lbl_format_v['text'] = img.format
-    lbl_mode_v['text'] = img.mode
-    lbl_size_v['text'] = f'{img.width}x{img.height}'
+    @image.setter
+    def image(self, value):
+        self._image = value
 
-    img.thumbnail((300, 300))
-    img = ImageTk.PhotoImage(img)
-    lbl_image['image'] = img
-    lbl_image.image = img
+        # img = value.copy()
+        # img.thumbnail((300, 300))
+        img = ImageTk.PhotoImage(value)
+        self.lbl_image['image'] = img
+        self.lbl_image.image = img
 
 
-menubar = Menu(root)
-root['menu'] = menubar
+class ImageInfo(tk.Frame):
 
-menu_file = Menu(menubar)
-menubar.add_cascade(menu=menu_file, label='File')
-menu_file.add_command(label='Open', command=process_image)
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
+        self._image = None
+
+        self.lbl_labels = [
+            tk.Label(self, text='Filename:'),
+            tk.Label(self, text='Format:'),
+            tk.Label(self, text='Mode:'),
+            tk.Label(self, text='Size:'),
+        ]
+
+        self.lbl_values = [
+            tk.Label(self, text='N/A'),
+            tk.Label(self, text='N/A'),
+            tk.Label(self, text='N/A'),
+            tk.Label(self, text='N/A')
+        ]
+
+        for idx, lbl in enumerate(self.lbl_labels):
+            lbl.grid(row=idx, column=0, sticky=(tk.N, tk.W))
+
+        for idx, lbl in enumerate(self.lbl_values):
+            lbl.grid(row=idx, column=1, sticky=(tk.N, tk.W))
+
+    @property
+    def image(self):
+        return self._image
+
+    @image.setter
+    def image(self, value):
+        self._image = value
+
+        fn, fmt, md, sz = self.lbl_values
+        fn['text'] = value.filename
+        fmt['text'] = value.format
+        md['text'] = value.mode
+        sz['text'] = f'{value.width}x{value.height}'
 
 
-content.grid(row=0, column=0)
-content.grid_propagate(0)
-image_info.grid(row=0, column=0)
-image_info.grid_propagate(0)
+class ImageProcessingApp(tk.Frame):
 
-lbl_filename_l.grid(row=0, column=0, sticky=(N, W))
-lbl_filename_v.grid(row=0, column=1, sticky=(N, W))
+    def __init__(self, master, *args, **kwargs):
+        super().__init__(master, *args, **kwargs)
 
-lbl_format_l.grid(row=1, column=0, sticky=(N, W))
-lbl_format_v.grid(row=1, column=1, sticky=(N, W))
+        self.menubar = tk.Menu(master)
+        master.configure(menu=self.menubar)
 
-lbl_mode_l.grid(row=2, column=0, sticky=(N, W))
-lbl_mode_v.grid(row=2, column=1, sticky=(N, W))
+        self.menu_file = tk.Menu(self.menubar)
+        self.menu_file.add_command(label='Open', command=self.process_image)
+        self.menubar.add_cascade(menu=self.menu_file, label='File')
 
-lbl_size_l.grid(row=3, column=0, sticky=(N, W))
-lbl_size_v.grid(row=3, column=1, sticky=(N, W))
+        self.image_info = ImageInfo(self, borderwidth=5, relief=tk.SOLID)
+        self.image_info.grid(row=0, column=0, sticky=(tk.N, tk.E, tk.W, tk.S))
 
-image_display.grid(row=0, column=1)
-image_display.grid_propagate(0)
-lbl_image.place(relx=0.5, rely=0.5, anchor='center')
+        self.image_frame = ImageFrame(self, borderwidth=5, relief=tk.SOLID)
+        self.image_frame.grid(row=0, column=1, sticky=(tk.N, tk.E, tk.W, tk.S))
 
+        ugrp = 'a'
+        self.columnconfigure(0, weight=1, uniform=ugrp)
+        self.columnconfigure(1, weight=1, uniform=ugrp)
+        self.rowconfigure(0, weight=1)
+
+    def process_image(self, *args, **kwargs):
+        fn = filedialog.askopenfilename()
+        try:
+            img = Image.open(fn)
+        except OSError:
+            messagebox.showerror('Invalid Image File',
+                                 'Please Specify a valid image file')
+            return
+
+        self.image_info.image = img
+        self.image_frame.image = img
+
+
+root = tk.Tk()
+root.title('Image Processor')
+root.option_add('*tearOff', tk.FALSE)
+ipa = ImageProcessingApp(root, borderwidth=5, relief=tk.SOLID)
+ipa.pack(fill=tk.BOTH, expand=tk.TRUE)
 
 root.mainloop()
